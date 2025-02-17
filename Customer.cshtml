@@ -1,0 +1,263 @@
+﻿@{
+    ViewData["Title"] = "Customer";
+}
+
+<h1 class="text-center">Customer Management</h1>
+
+<div class="text-center mb-3">
+    <button class="btn btn-primary" onclick="AddCustomer()">Add Customer</button>
+</div>
+
+<div class="container">
+    <table class="table table-bordered table-striped text-center align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Email</th>
+                <th>Mobile No</th>
+                <th>GeoLocation</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="customerTableBody"></tbody>
+    </table>
+</div>
+
+
+<div class="modal fade" id="editCustomerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Customer</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editCustomerId">
+                <div>
+                    <label>Name:</label>
+                    <input type="text" id="editName" class="form-control">
+                </div>
+                <div>
+                    <label>Address:</label>
+                    <input type="text" id="editAddress" class="form-control">
+                </div>
+                <div>
+                    <label>Email:</label>
+                    <input type="text" id="editEmail" class="form-control">
+                </div>
+                <div>
+                    <label>Mobile No:</label>
+                    <input type="text" id="editMobileNo" class="form-control">
+                </div>
+                <div>
+                    <label>GeoLocation:</label>
+                    <input type="text" id="editGeoLocation" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="InsertCustomer">Save</button>
+                <button type="button" class="btn btn-primary" id="saveEditCustomer">Update</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+
+    $(document).ready(function () {
+        loadData();
+    });
+
+    function loadData() {
+        debugger
+        let Mode = "RetrieveCustomers";  
+        $.ajax({
+            url: "/api/customer",
+            type: "GET",
+            data: { mode: Mode },  
+            success: function (response) {
+                let tableBody = $("#customerTableBody");
+                tableBody.empty();
+                response.forEach(customer => {
+                    tableBody.append(`
+                        <tr data-id="${customer.customerCode}">
+                            <td class="name">${customer.name}</td>
+                            <td class="address">${customer.address}</td>
+                            <td class="email">${customer.email}</td>
+                            <td class="mobileNo">${customer.mobileNo}</td>
+                            <td class="geoLocation">${customer.geoLocation}</td>
+                            <td>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button class="btn btn-warning btn-sm" onclick="editCustomer(this)">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="showDeleteModal(${customer.customerCode})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>`);
+                });
+            },
+            error: function (error) {
+                console.error(error);
+            }
+        });
+    }
+
+    function editCustomer(button) {
+        debugger;
+        $("#InsertCustomer").hide();
+        $("#saveEditCustomer").show();
+
+        let customerCode = $(button).closest("tr").data("id");
+
+        $.ajax({
+            url: `/api/customer/${customerCode}?Mode=GetCustomerByCode`,
+            type: "GET",
+            success: function (customer) {
+                if (customer) {
+                    $("#editCustomerModal").modal("show");
+                    $("#editCustomerId").val(customer.customerCode);
+                    $("#editName").val(customer.name);
+                    $("#editAddress").val(customer.address);
+                    $("#editEmail").val(customer.email);
+                    $("#editMobileNo").val(customer.mobileNo);
+                    $("#editGeoLocation").val(customer.geoLocation);
+                } else {
+                    Swal.fire("Error!", "Customer data not found.", "error");
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error(xhr.responseText);
+                Swal.fire("Error!", "Failed to fetch customer.", "error");
+            }
+        });
+    }
+
+
+    $("#saveEditCustomer").click(function () {
+        debugger
+        let customerCode = $("#editCustomerId").val();
+        let updatedCustomer = {
+            customerCode: customerCode,  
+            name: $("#editName").val(),
+            address: $("#editAddress").val(),
+            email: $("#editEmail").val(),
+            mobileNo: $("#editMobileNo").val(),
+            geoLocation: $("#editGeoLocation").val()
+        };
+
+        $.ajax({
+            url: `/api/customer/UpdateCustomer?Mode=EditCustomer`,  
+            type: "PUT",
+            contentType: "application/json",
+            data: JSON.stringify(updatedCustomer),
+            success: function (data) {
+                if (data=="3") {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Success!",
+                        text: "Customer updated successfully!"
+                    })
+                    $("#editCustomerModal").modal("hide");
+                    loadData();  
+                } else {
+                    alert("Failed to update customer.");
+                }
+            },
+            error: function (error) {
+                console.error(error);
+            }
+        });
+    });
+
+    function showDeleteModal(customerCode) {
+        Swal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, delete it!"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deleteCustomer(customerCode);
+            }
+        });
+    }
+
+    function deleteCustomer(customerCode) {
+        debugger
+        let Mode = "DeleteCustomer"; 
+
+        $.ajax({
+            url: `/api/customer/${customerCode}?Mode=${Mode}`,
+            type: "DELETE",
+            success: function (response) {
+                if (response == "4")
+                {
+                    Swal.fire("Deleted!", "Customer has been deleted.", "success");
+                    loadData();  
+                }
+            },
+            error: function (xhr) {
+                Swal.fire("Error!", "Failed to delete customer.", "error");
+                console.error(xhr);
+            }
+        });
+    }
+
+    function AddCustomer() {
+        $("#editCustomerModal .modal-title").text("Add Customer");
+        $("#InsertCustomer").show();
+        $("#saveEditCustomer").hide();
+        $("#editCustomerModal").modal("show");
+        $("#editCustomerId, #editName, #editAddress, #editEmail, #editMobileNo, #editGeoLocation").val(""); 
+    }
+
+    $("#InsertCustomer").click(function () {
+        let newCustomer = {
+            name: $("#editName").val(),
+            address: $("#editAddress").val(),
+            email: $("#editEmail").val(),
+            mobileNo: $("#editMobileNo").val(),
+            geoLocation: $("#editGeoLocation").val()
+        };
+
+        $.ajax({
+            url: `/api/customer?Mode=InsertCustomer`,
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(newCustomer),
+            success: function (data) {
+                if (data == "5") {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Success!",
+                        text: "Customer added successfully!"
+                    });
+                    $("#editCustomerModal").modal("hide");
+                    loadData();
+                } else {
+                    alert("Failed to add customer.");
+                }
+            },
+            error: function (error) {
+                console.error(error);
+            }
+        });
+    });
+
+
+</script>
